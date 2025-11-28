@@ -74,7 +74,7 @@
 
     <a-layout-footer class="footer">
       <div class="footer-content">
-        <p class="copyright">© 2024 GZC 个人博客. All rights reserved.</p>
+        <p class="copyright">© GZC 个人博客. All rights reserved.</p>
         <p class="footer-links">
           <router-link to="/about">关于</router-link>
           <span class="divider">·</span>
