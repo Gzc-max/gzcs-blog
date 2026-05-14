@@ -1,386 +1,325 @@
 <template>
   <div class="articles-page">
-    <!-- 搜索和筛选区 -->
-    <div class="header-section">
-      <h1 class="page-title">文章列表</h1>
-      <SearchBar />
-      
-      <div class="filter-section">
-        <a-space wrap :size="12">
-          <a-button
-            :type="!currentCategory ? 'primary' : 'default'"
-            @click="filterByCategory('')"
+    <div class="container">
+      <h1 class="page-title">文章</h1>
+
+      <!-- 搜索 -->
+      <div class="search-box">
+        <input
+          v-model="keyword"
+          type="text"
+          placeholder="搜索文章..."
+          class="search-input"
+          @input="onSearch"
+        />
+      </div>
+
+      <!-- 分类筛选 -->
+      <div v-if="categories.length" class="filter-section">
+        <span class="filter-label">分类</span>
+        <div class="filter-list">
+          <button
+            class="filter-btn"
+            :class="{ active: selectedCategory === '' }"
+            @click="selectedCategory = ''"
           >
             全部
-          </a-button>
-          <a-button
+          </button>
+          <button
             v-for="cat in categories"
-            :key="cat.id"
-            :type="currentCategory === cat.name ? 'primary' : 'default'"
-            @click="filterByCategory(cat.name)"
+            :key="cat"
+            class="filter-btn"
+            :class="{ active: selectedCategory === cat }"
+            @click="selectedCategory = cat"
           >
-            {{ cat.name }} ({{ cat.count }})
-          </a-button>
-        </a-space>
+            {{ cat }}
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- 主内容区 -->
-    <div class="content-wrapper">
+      <!-- 标签筛选 -->
+      <div v-if="tags.length" class="filter-section">
+        <span class="filter-label">标签</span>
+        <div class="tag-list">
+          <button
+            class="tag-btn"
+            :class="{ active: selectedTag === '' }"
+            @click="selectedTag = ''"
+          >
+            全部
+          </button>
+          <button
+            v-for="t in tags"
+            :key="t.name"
+            class="tag-btn"
+            :class="{ active: selectedTag === t.name }"
+            @click="selectedTag = t.name"
+          >
+            {{ t.name }} <span class="tag-count">{{ t.count }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- 文章列表 -->
-      <div class="articles-main">
-        <div v-if="filteredArticles.length === 0" class="empty-state">
-          <a-empty description="暂无文章" />
+      <div class="article-list">
+        <div v-if="filtered.length === 0" class="empty-state">
+          没有找到匹配的文章
         </div>
-
-        <div v-else class="articles-grid">
-          <a-card
-            v-for="article in filteredArticles"
-            :key="article.id"
-            class="article-card"
-            :hoverable="true"
-            @click="goToArticle(article.id)"
-          >
-            <div class="article-cover" v-if="article.coverImage">
-              <img :src="article.coverImage" :alt="article.title" />
-            </div>
-
-            <div class="article-body">
-              <h2 class="article-title">{{ article.title }}</h2>
-
-              <div class="article-meta">
-                <a-space :size="12">
-                  <span>
-                    <calendar-outlined />
-                    {{ article.date }}
-                  </span>
-                  <span>
-                    <eye-outlined />
-                    {{ article.views }} 阅读
-                  </span>
-                  <span>
-                    <heart-outlined />
-                    {{ article.likes }} 点赞
-                  </span>
-                </a-space>
-              </div>
-
-              <p class="article-summary">{{ article.summary }}</p>
-
-              <div class="article-footer">
-                <a-tag color="blue">{{ article.category }}</a-tag>
-                <a-space :size="4">
-                  <a-tag v-for="tag in article.tags.slice(0, 3)" :key="tag" size="small">
-                    {{ tag }}
-                  </a-tag>
-                </a-space>
-              </div>
-            </div>
-          </a-card>
-        </div>
-
-        <!-- 分页 -->
-        <div class="pagination" v-if="filteredArticles.length > 0">
-          <a-pagination
-            v-model:current="currentPage"
-            v-model:page-size="pageSize"
-            :total="totalArticles"
-            show-size-changer
-            :page-size-options="['6', '12', '24']"
-            @change="handlePageChange"
-          />
-        </div>
-      </div>
-
-      <!-- 侧边栏 -->
-      <div class="articles-sidebar">
-        <TagCloud />
-        <CategoryList />
+        <article
+          v-for="article in filtered"
+          :key="article.slug"
+          class="article-card"
+          @click="goToArticle(article.slug)"
+        >
+          <div class="article-meta">
+            <time class="article-date">{{ formatDate(article.date) }}</time>
+            <span class="article-category">{{ article.category }}</span>
+          </div>
+          <h3 class="article-title">{{ article.title }}</h3>
+          <p class="article-summary">{{ article.summary }}</p>
+          <div class="article-tags">
+            <span v-for="tag in article.tags" :key="tag" class="tag">{{ tag }}</span>
+          </div>
+        </article>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import {
-  CalendarOutlined,
-  EyeOutlined,
-  HeartOutlined
-} from '@ant-design/icons-vue'
-import { getArticles, categories } from '@/data/articles'
-import SearchBar from '@/components/SearchBar.vue'
-import TagCloud from '@/components/TagCloud.vue'
-import CategoryList from '@/components/CategoryList.vue'
+import { loadArticlesMeta, getAllTags, getCategories, type ArticleMeta } from '@/utils/contentLoader'
+import { formatDate } from '@/utils/formatDate'
 
 const router = useRouter()
 const route = useRoute()
 
-const currentCategory = ref('')
-const currentTag = ref('')
-const currentPage = ref(1)
-const pageSize = ref(6)
-const totalArticles = ref(0)
-const allArticles = ref<any[]>([])
+const allArticles = ref<ArticleMeta[]>([])
+const categories = ref<string[]>([])
+const tags = ref<{ name: string; count: number }[]>([])
 
-// 筛选后的文章列表
-const filteredArticles = computed(() => {
-  return allArticles.value
-})
-
-// 加载文章
-const loadArticles = () => {
-  const result = getArticles({
-    category: currentCategory.value || undefined,
-    tag: currentTag.value || undefined,
-    keyword: route.query.keyword as string,
-    page: currentPage.value,
-    pageSize: pageSize.value
-  })
-  allArticles.value = result.list
-  totalArticles.value = result.total
-}
-
-// 按分类筛选
-const filterByCategory = (category: string) => {
-  currentCategory.value = category
-  currentPage.value = 1
-  router.push({
-    path: '/articles',
-    query: category ? { category } : {}
-  })
-  loadArticles()
-}
-
-// 页码变化
-const handlePageChange = () => {
-  loadArticles()
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-// 跳转到文章详情
-const goToArticle = (id: number) => {
-  router.push(`/article/${id}`)
-}
-
-// 监听路由变化
-watch(() => route.query, () => {
-  if (route.query.category) {
-    currentCategory.value = route.query.category as string
-  }
-  if (route.query.tag) {
-    currentTag.value = route.query.tag as string
-  }
-  if (route.query.keyword) {
-    currentCategory.value = ''
-    currentTag.value = ''
-  }
-  loadArticles()
-}, { immediate: false })
+const keyword = ref('')
+const selectedCategory = ref('')
+const selectedTag = ref('')
 
 onMounted(() => {
-  // 初始化筛选条件
-  if (route.query.category) {
-    currentCategory.value = route.query.category as string
-  }
-  if (route.query.tag) {
-    currentTag.value = route.query.tag as string
-  }
-  loadArticles()
+  allArticles.value = loadArticlesMeta()
+  categories.value = getCategories()
+  tags.value = getAllTags()
+
+  // 从 URL 参数恢复搜索状态
+  if (route.query.keyword) keyword.value = route.query.keyword as string
+  if (route.query.category) selectedCategory.value = route.query.category as string
+  if (route.query.tag) selectedTag.value = route.query.tag as string
 })
+
+const filtered = computed(() => {
+  let result = allArticles.value
+
+  if (selectedCategory.value) {
+    result = result.filter(a => a.category === selectedCategory.value)
+  }
+
+  if (selectedTag.value) {
+    result = result.filter(a => a.tags.includes(selectedTag.value))
+  }
+
+  if (keyword.value.trim()) {
+    const kw = keyword.value.toLowerCase()
+    result = result.filter(a =>
+      a.title.toLowerCase().includes(kw) ||
+      a.summary.toLowerCase().includes(kw) ||
+      a.tags.some(t => t.toLowerCase().includes(kw))
+    )
+  }
+
+  return result
+})
+
+function onSearch() {
+  router.replace({
+    query: {
+      ...(keyword.value ? { keyword: keyword.value } : {}),
+      ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
+      ...(selectedTag.value ? { tag: selectedTag.value } : {})
+    }
+  })
+}
+
+function goToArticle(slug: string) {
+  router.push(`/article/${slug}`)
+}
 </script>
 
 <style scoped>
 .articles-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.header-section {
-  margin-bottom: 32px;
+  padding: 48px 0 60px;
 }
 
 .page-title {
-  font-size: 2.5em;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin: 0 0 24px 0;
-  color: #1a1a1a;
-}
-
-.filter-section {
-  margin-top: 24px;
-  padding: 20px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.content-wrapper {
-  display: flex;
-  gap: 30px;
-}
-
-.articles-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.articles-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 24px;
+  letter-spacing: -0.03em;
   margin-bottom: 32px;
 }
 
-.article-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  overflow: hidden;
+.search-box {
+  margin-bottom: 32px;
 }
 
-.article-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.article-cover {
+.search-input {
   width: 100%;
-  height: 200px;
-  overflow: hidden;
-  margin: -24px -24px 16px -24px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
 }
 
-.article-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
+.search-input:focus {
+  border-color: var(--accent);
 }
 
-.article-card:hover .article-cover img {
-  transform: scale(1.05);
+.search-input::placeholder {
+  color: var(--text-tertiary);
 }
 
-.article-body {
-  padding: 0;
+.filter-section {
+  margin-bottom: 24px;
 }
 
-.article-title {
-  font-size: 1.4em;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  color: #1a1a1a;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.filter-label {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 10px;
 }
 
-.article-meta {
-  margin-bottom: 12px;
-  color: #666;
-  font-size: 13px;
-}
-
-.article-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.article-summary {
-  color: #666;
-  line-height: 1.6;
-  margin: 0 0 16px 0;
-  font-size: 14px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.article-footer {
+.filter-list,
+.tag-list {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.articles-sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.filter-btn,
+.tag-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
 }
 
-.pagination {
-  display: flex;
-  justify-content: center;
-  margin-top: 32px;
+.filter-btn:hover,
+.tag-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.filter-btn.active,
+.tag-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.tag-count {
+  margin-left: 4px;
+  opacity: 0.5;
+}
+
+.article-list {
+  padding-top: 16px;
 }
 
 .empty-state {
-  padding: 60px 0;
   text-align: center;
+  padding: 60px 0;
+  color: var(--text-tertiary);
+  font-size: 0.95rem;
 }
 
-/* 暗色模式 */
-[data-theme='dark'] .page-title {
-  color: #e0e0e0;
+.article-card {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
 }
 
-[data-theme='dark'] .filter-section {
-  background: #1f1f1f;
-  border: 1px solid #333;
+.article-card:last-child {
+  border-bottom: none;
 }
 
-[data-theme='dark'] .article-card {
-  background: #1f1f1f;
-  border-color: #333;
+.article-card:hover .article-title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-[data-theme='dark'] .article-title {
-  color: #e0e0e0;
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
 }
 
-[data-theme='dark'] .article-meta,
-[data-theme='dark'] .article-summary {
-  color: #999;
+.article-category {
+  padding: 2px 8px;
+  background: var(--tag-bg);
+  border-radius: 4px;
+  font-size: 0.75rem;
 }
 
-/* 响应式 */
-@media screen and (max-width: 992px) {
-  .content-wrapper {
-    flex-direction: column;
-  }
-
-  .articles-sidebar {
-    width: 100%;
-  }
-
-  .articles-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
+.article-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 6px;
 }
 
-@media screen and (max-width: 768px) {
+.article-summary {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border-radius: 4px;
+}
+
+@media (max-width: 640px) {
   .articles-page {
-    padding: 16px;
+    padding: 32px 0 40px;
   }
 
   .page-title {
-    font-size: 2em;
-  }
-
-  .articles-grid {
-    grid-template-columns: 1fr;
+    font-size: 1.5rem;
   }
 }
 </style>

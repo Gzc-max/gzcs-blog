@@ -1,472 +1,255 @@
 <template>
-  <div class="article-detail" v-if="article">
-    <div class="article-container">
+  <div class="article-detail">
+    <div class="container">
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <div v-else-if="!article" class="not-found">
+      <p>文章不存在</p>
+      <router-link to="/articles" class="back-link">← 返回文章列表</router-link>
+    </div>
+    <article v-else class="article-content">
       <!-- 文章头部 -->
-      <div class="article-header">
-        <a-breadcrumb class="breadcrumb">
-          <a-breadcrumb-item>
-            <router-link to="/">首页</router-link>
-          </a-breadcrumb-item>
-          <a-breadcrumb-item>
-            <router-link to="/articles">文章</router-link>
-          </a-breadcrumb-item>
-          <a-breadcrumb-item>{{ article.title }}</a-breadcrumb-item>
-        </a-breadcrumb>
-
-        <h1 class="article-title">{{ article.title }}</h1>
-
+      <header class="article-header">
         <div class="article-meta">
-          <a-space :size="16">
-            <span>
-              <user-outlined />
-              {{ article.author }}
-            </span>
-            <span>
-              <calendar-outlined />
-              {{ article.date }}
-            </span>
-            <span>
-              <eye-outlined />
-              {{ article.views }} 阅读
-            </span>
-            <span>
-              <heart-outlined />
-              {{ article.likes }} 点赞
-            </span>
-          </a-space>
+          <time class="article-date">{{ formatDate(article.date) }}</time>
+          <span class="article-category">{{ article.category }}</span>
         </div>
-
+        <h1 class="article-title">{{ article.title }}</h1>
         <div class="article-tags">
-          <a-tag
+          <router-link
             v-for="tag in article.tags"
             :key="tag"
-            color="blue"
-            @click="handleTagClick(tag)"
+            :to="{ path: '/articles', query: { tag } }"
+            class="tag"
           >
             {{ tag }}
-          </a-tag>
+          </router-link>
         </div>
-      </div>
+      </header>
 
-      <!-- 文章内容 -->
-      <div class="article-content">
-        <div class="content-body" v-html="renderedContent"></div>
-      </div>
+      <!-- 正文 -->
+      <div class="article-body" v-html="article.contentHtml" />
 
-      <!-- 文章底部操作 -->
-      <div class="article-actions">
-        <a-space :size="16">
-          <a-button
-            type="primary"
-            size="large"
-            :icon="h(HeartOutlined)"
-            @click="handleLike"
-          >
-            点赞 ({{ article.likes }})
-          </a-button>
-          <a-button
-            size="large"
-            :icon="h(ShareAltOutlined)"
-            @click="handleShare"
-          >
-            分享
-          </a-button>
-        </a-space>
-      </div>
-
-      <!-- 相关推荐 -->
-      <div class="recommended-articles" v-if="recommended.length">
-        <h3 class="section-title">相关推荐</h3>
-        <div class="recommended-list">
-          <div
-            v-for="item in recommended"
-            :key="item.id"
-            class="recommended-item"
-            @click="goToArticle(item.id)"
-          >
-            <h4 class="recommended-title">{{ item.title }}</h4>
-            <p class="recommended-summary">{{ item.summary }}</p>
-            <div class="recommended-meta">
-              <span>{{ item.date }}</span>
-              <span>{{ item.views }} 阅读</span>
-            </div>
-          </div>
-        </div>
+      <!-- 返回链接 -->
+      <div class="article-footer">
+        <router-link to="/articles" class="back-link">← 返回文章列表</router-link>
       </div>
 
       <!-- 评论区 -->
-      <div class="comments-section">
-        <h3 class="section-title">
-          <comment-outlined />
-          评论区
-        </h3>
-        <CommentBox :article-id="article.id" />
-      </div>
-    </div>
-
-    <!-- 侧边栏 -->
-    <div class="sidebar">
-      <!-- 目录 -->
-      <div class="toc-card">
-        <h4 class="toc-title">目录</h4>
-        <div class="toc-content">
-          <div class="toc-item">文章目录功能待完善</div>
-        </div>
-      </div>
-
-      <!-- 标签云 -->
-      <TagCloud />
-
-      <!-- 分类列表 -->
-      <CategoryList />
+      <CommentBox :article-slug="article.slug" />
+    </article>
     </div>
   </div>
-
-  <a-empty v-else description="文章不存在" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import {
-  UserOutlined,
-  CalendarOutlined,
-  EyeOutlined,
-  HeartOutlined,
-  ShareAltOutlined,
-  CommentOutlined
-} from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue/es'
-import { getArticleById, getRecommendedArticles } from '@/data/articles'
-import TagCloud from '@/components/TagCloud.vue'
-import CategoryList from '@/components/CategoryList.vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { loadArticle, type Article } from '@/utils/contentLoader'
+import { formatDate } from '@/utils/formatDate'
 import CommentBox from '@/components/CommentBox.vue'
-import type { Article } from '@/types/article'
 
 const route = useRoute()
-const router = useRouter()
-
 const article = ref<Article | null>(null)
-const recommended = ref<Article[]>([])
-
-// 简单的 Markdown 渲染（实际项目中应使用 marked 或 markdown-it）
-const renderedContent = computed(() => {
-  if (!article.value?.content) return ''
-  
-  // 简单处理换行和段落
-  return article.value.content
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>')
-    .replace(/^/, '<p>')
-    .replace(/$/, '</p>')
-    .replace(/# (.*?)(<br>|<\/p>)/g, '<h1>$1</h1>')
-    .replace(/## (.*?)(<br>|<\/p>)/g, '<h2>$1</h2>')
-    .replace(/### (.*?)(<br>|<\/p>)/g, '<h3>$1</h3>')
-})
+const loading = ref(true)
 
 onMounted(() => {
-  const id = Number(route.params.id)
-  article.value = getArticleById(id) || null
-  
-  if (article.value) {
-    recommended.value = getRecommendedArticles(id)
-  }
+  const slug = route.params.slug as string
+  article.value = loadArticle(slug)
+  loading.value = false
 })
-
-const handleTagClick = (tag: string) => {
-  router.push({
-    path: '/articles',
-    query: { tag }
-  })
-}
-
-const handleLike = () => {
-  if (article.value) {
-    article.value.likes++
-    message.success('点赞成功！')
-  }
-}
-
-const handleShare = () => {
-  message.info('分享功能待完善')
-}
-
-const goToArticle = (id: number) => {
-  router.push(`/article/${id}`)
-  // 滚动到顶部
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
 </script>
 
 <style scoped>
 .article-detail {
-  display: flex;
-  gap: 30px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
+  padding: 48px 0 60px;
 }
 
-.article-container {
-  flex: 1;
-  min-width: 0;
+.loading-state,
+.not-found {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--text-tertiary);
+}
+
+.not-found p {
+  margin-bottom: 16px;
+}
+
+.back-link {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: var(--text);
 }
 
 .article-header {
-  background: white;
-  padding: 32px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  margin-bottom: 24px;
-}
-
-.breadcrumb {
-  margin-bottom: 24px;
-}
-
-.article-title {
-  font-size: 2.5em;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 20px 0;
-  line-height: 1.3;
+  margin-bottom: 40px;
 }
 
 .article-meta {
-  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
 }
 
-.article-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.article-category {
+  padding: 2px 8px;
+  background: var(--tag-bg);
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.article-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.3;
+  margin-bottom: 16px;
 }
 
 .article-tags {
   display: flex;
+  gap: 8px;
   flex-wrap: wrap;
-  gap: 8px;
 }
 
-.article-content {
-  background: white;
-  padding: 40px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  margin-bottom: 24px;
-  min-height: 400px;
+.tag {
+  font-size: 0.8rem;
+  padding: 3px 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border-radius: 4px;
+  transition: all 0.2s;
 }
 
-.content-body {
-  font-size: 16px;
+.tag:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.article-footer {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+/* Markdown 正文样式 */
+.article-body {
+  font-size: 1rem;
   line-height: 1.8;
-  color: #333;
+  color: var(--text);
 }
 
-.content-body :deep(h1) {
-  font-size: 2em;
-  margin: 24px 0 16px;
+.article-body :deep(h1),
+.article-body :deep(h2),
+.article-body :deep(h3) {
+  margin-top: 2em;
+  margin-bottom: 0.6em;
   font-weight: 600;
-  border-bottom: 2px solid #667eea;
-  padding-bottom: 8px;
+  letter-spacing: -0.02em;
 }
 
-.content-body :deep(h2) {
-  font-size: 1.6em;
-  margin: 20px 0 12px;
-  font-weight: 600;
+.article-body :deep(h1) { font-size: 1.6rem; }
+.article-body :deep(h2) { font-size: 1.3rem; }
+.article-body :deep(h3) { font-size: 1.1rem; }
+
+.article-body :deep(p) {
+  margin-bottom: 1.2em;
 }
 
-.content-body :deep(h3) {
-  font-size: 1.3em;
-  margin: 16px 0 8px;
-  font-weight: 600;
+.article-body :deep(a) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.content-body :deep(p) {
-  margin: 12px 0;
-}
-
-.article-actions {
-  background: white;
-  padding: 24px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  margin-bottom: 24px;
-  text-align: center;
-}
-
-.recommended-articles {
-  background: white;
-  padding: 32px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  margin-bottom: 24px;
-}
-
-.section-title {
-  font-size: 1.5em;
-  font-weight: 600;
-  margin: 0 0 20px 0;
-  color: #1a1a1a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.recommended-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.recommended-item {
-  padding: 16px;
-  border: 1px solid #e8e8e8;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.recommended-item:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-  transform: translateY(-2px);
-}
-
-.recommended-title {
-  font-size: 1.1em;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  color: #333;
-}
-
-.recommended-summary {
+.article-body :deep(code) {
+  padding: 2px 6px;
+  background: var(--tag-bg);
+  border-radius: 4px;
   font-size: 0.9em;
-  color: #666;
-  margin: 0 0 12px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.article-body :deep(pre) {
+  margin: 1.5em 0;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.88rem;
   line-height: 1.6;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
-.recommended-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85em;
-  color: #999;
+.article-body :deep(pre code) {
+  background: none;
+  padding: 0;
+  font-size: inherit;
 }
 
-.comments-section {
-  background: white;
-  padding: 32px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+.article-body :deep(blockquote) {
+  margin: 1.5em 0;
+  padding: 12px 20px;
+  border-left: 3px solid var(--accent);
+  color: var(--text-secondary);
 }
 
-.sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.article-body :deep(ul),
+.article-body :deep(ol) {
+  margin: 1em 0;
+  padding-left: 24px;
 }
 
-.toc-card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  position: sticky;
-  top: 84px;
+.article-body :deep(li) {
+  margin-bottom: 0.4em;
 }
 
-.toc-title {
-  font-size: 16px;
+.article-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  font-size: 0.9rem;
+}
+
+.article-body :deep(th),
+.article-body :deep(td) {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.article-body :deep(th) {
+  background: var(--bg-secondary);
   font-weight: 600;
-  margin: 0 0 12px 0;
 }
 
-.toc-content {
-  font-size: 14px;
-  color: #666;
+.article-body :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
 }
 
-.toc-item {
-  padding: 8px 0;
-  cursor: pointer;
-  transition: color 0.3s;
+.article-body :deep(img) {
+  border-radius: 8px;
+  margin: 1.5em 0;
 }
 
-.toc-item:hover {
-  color: #667eea;
-}
-
-/* 暗色模式 */
-[data-theme='dark'] .article-header,
-[data-theme='dark'] .article-content,
-[data-theme='dark'] .article-actions,
-[data-theme='dark'] .recommended-articles,
-[data-theme='dark'] .comments-section,
-[data-theme='dark'] .toc-card {
-  background: #1f1f1f;
-  border: 1px solid #333;
-}
-
-[data-theme='dark'] .article-title,
-[data-theme='dark'] .section-title,
-[data-theme='dark'] .toc-title {
-  color: #e0e0e0;
-}
-
-[data-theme='dark'] .content-body {
-  color: #d0d0d0;
-}
-
-[data-theme='dark'] .recommended-item {
-  background: #2a2a2a;
-  border-color: #333;
-}
-
-[data-theme='dark'] .recommended-title {
-  color: #e0e0e0;
-}
-
-/* 响应式 */
-@media screen and (max-width: 992px) {
+@media (max-width: 640px) {
   .article-detail {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-  }
-
-  .toc-card {
-    position: relative;
-    top: 0;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .article-header,
-  .article-content,
-  .recommended-articles,
-  .comments-section {
-    padding: 20px;
+    padding: 32px 0 40px;
   }
 
   .article-title {
-    font-size: 1.8em;
+    font-size: 1.5rem;
   }
 
-  .recommended-list {
-    grid-template-columns: 1fr;
-  }
+  .article-body :deep(h1) { font-size: 1.3rem; }
+  .article-body :deep(h2) { font-size: 1.15rem; }
 }
 </style>

@@ -1,76 +1,105 @@
 <template>
-  <div class="about">
-    <a-typography-title>关于我</a-typography-title>
-    <div class="content">
-      <div class="profile">
-        <a-typography-title :level="2">{{ name }}</a-typography-title>
-        <a-typography-text type="secondary" class="title">{{
-          title
-        }}</a-typography-text>
-      </div>
+  <div class="about-page">
+    <div class="container">
+      <h1 class="page-title">关于</h1>
 
-      <div class="description">
-        <a-typography-title :level="3">个人简介</a-typography-title>
-        <a-typography-paragraph>{{ description }}</a-typography-paragraph>
-      </div>
+      <div class="about-content">
+        <p>
+          你好，我是 GZC，一名前端工程师。
+        </p>
+        <p>
+          平时主要使用 Vue 生态，也接触过 React 和 Node.js。喜欢折腾工具链、性能优化和界面细节。
+        </p>
+        <p>
+          这个博客用来记录技术思考和项目经验，也算是一个个人作品展示。
+        </p>
 
-      <div class="contact">
-        <a-typography-title :level="3">联系方式</a-typography-title>
-        <a-space direction="vertical">
-          <a-tag v-for="(contact, index) in contacts" :key="index">
-            <template #icon>
-              <mail-outlined v-if="contact.type === 'Email'" />
-              <github-outlined v-else-if="contact.type === 'GitHub'" />
-            </template>
-            {{ contact.type }}: {{ contact.value }}
-          </a-tag>
-        </a-space>
+        <section class="about-section">
+          <h2>技术栈</h2>
+          <ul class="tech-list">
+            <li>Vue 3 / TypeScript / Vite</li>
+            <li>HTML5 / CSS3 / 响应式设计</li>
+            <li>Node.js / Express</li>
+            <li>Git / Docker / CI/CD</li>
+          </ul>
+        </section>
+
+        <section class="about-section">
+          <h2>联系我</h2>
+          <ul class="contact-list">
+            <li><a href="mailto:your@email.com">your@email.com</a></li>
+            <li><a href="https://github.com" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://gitee.com" target="_blank" rel="noopener">Gitee</a></li>
+          </ul>
+        </section>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue'
-import { MailOutlined, GithubOutlined } from '@ant-design/icons-vue'
-
-// 个人信息
-const name = ref('您的名字')
-const title = ref('全栈开发工程师')
-const description = ref(
-  '这里是您的个人简介，可以介绍您的专业背景、技能特长、工作经历等。'
-)
-
-// 联系方式
-const contacts = ref([
-  { type: 'Email', value: 'your.email@example.com' },
-  { type: 'GitHub', value: 'github.com/yourusername' }
-])
-</script>
-
 <style scoped>
-.about {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+.about-page {
+  padding: 48px 0 60px;
 }
 
-.content {
-  margin-top: 30px;
+.page-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 32px;
 }
 
-.profile {
-  text-align: center;
-  margin-bottom: 40px;
+.about-content p {
+  margin-bottom: 1.2em;
+  color: var(--text-secondary);
+  line-height: 1.8;
 }
 
-.title {
-  display: block;
-  margin-top: 8px;
+.about-section {
+  margin-top: 40px;
 }
 
-.description {
-  margin: 30px 0;
-  line-height: 1.6;
+.about-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tech-list,
+.contact-list {
+  list-style: none;
+  padding: 0;
+}
+
+.tech-list li {
+  padding: 6px 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.contact-list li {
+  padding: 6px 0;
+}
+
+.contact-list a {
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.contact-list a:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .about-page {
+    padding: 32px 0 40px;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
 }
 </style>

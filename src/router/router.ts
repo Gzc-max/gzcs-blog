@@ -1,6 +1,6 @@
-import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-const routes: Array<RouteRecordRaw> = [
+const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
@@ -12,34 +12,19 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/Articles.vue')
   },
   {
-    path: '/article/:id',
+    path: '/article/:slug',
     name: 'ArticleDetail',
     component: () => import('../views/ArticleDetail.vue')
-  },
-  {
-    path: '/gojs',
-    name: 'Gojs',
-    component: () => import('../views/Gojs.vue')
-  },
-  {
-    path: '/demo',
-    name: 'Demo',
-    component: () => import('../views/Demo.vue')
-  },
-  {
-    path: '/resume',
-    name: 'Resume',
-    component: () => import('../views/Resume.vue')
-  },
-  {
-    path: '/interview',
-    name: 'Interview',
-    component: () => import('../views/Interview.vue')
   },
   {
     path: '/about',
     name: 'About',
     component: () => import('../views/About.vue')
+  },
+  {
+    path: '/resume',
+    name: 'Resume',
+    component: () => import('../views/Resume.vue')
   },
   {
     path: '/:pathMatch(.*)*',
@@ -49,7 +34,11 @@ const routes: Array<RouteRecordRaw> = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    return { top: 0 }
+  }
 })
 
 export default router
