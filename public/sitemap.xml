@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://your-blog.vercel.app/</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/articles</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/about</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/resume</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/article/ai-impact-29-frontend</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/article/rag-retrieval-augmented-generation</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/article/typescript-advanced-types</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/article/vue3-composition-api</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/article/web-performance-optimization</loc>
+  </url>
+  <url>
+    <loc>https://your-blog.vercel.app/article/css-architecture</loc>
+  </url>
+</urlset>

@@ -37,6 +37,18 @@
   </div>
 </template>
 
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { setSeo } from '@/utils/seo'
+
+onMounted(() => {
+  setSeo({
+    title: '关于',
+    description: '了解高子晨的技术栈、开发经历和联系方式。'
+  })
+})
+</script>
+
 <style scoped>
 .about-page {
   padding: 48px 0 60px;

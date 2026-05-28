@@ -80,6 +80,18 @@
   </div>
 </template>
 
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { setSeo } from '@/utils/seo'
+
+onMounted(() => {
+  setSeo({
+    title: '简历',
+    description: '高子晨的前端工程师简历，包含工作经历、项目经历和技术能力。'
+  })
+})
+</script>
+
 <style scoped>
 .resume-page {
   padding: 48px 0 60px;
