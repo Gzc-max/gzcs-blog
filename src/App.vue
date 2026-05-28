@@ -8,7 +8,10 @@
     <!-- 导航栏 -->
     <header class="header">
       <div class="header-inner">
-        <router-link to="/" class="logo">GZC</router-link>
+        <router-link to="/" class="logo" aria-label="返回首页">
+          <span class="logo-mark">G</span>
+          <span class="logo-text">GZC.LOG</span>
+        </router-link>
         <nav class="nav">
           <router-link to="/" class="nav-link" :class="{ active: route.path === '/' }">首页</router-link>
           <router-link to="/articles" class="nav-link" active-class="active">文章</router-link>
@@ -16,7 +19,7 @@
           <router-link to="/resume" class="nav-link" active-class="active">简历</router-link>
         </nav>
         <button class="theme-btn" @click="toggleTheme" :aria-label="isDark() ? '切换亮色模式' : '切换暗色模式'">
-          {{ isDark() ? '☀️' : '🌙' }}
+          {{ isDark() ? 'Light' : 'Dark' }}
         </button>
       </div>
     </header>
@@ -33,7 +36,9 @@
     <!-- 页脚 -->
     <footer class="footer">
       <div class="footer-inner">
-        <span>© {{ new Date().getFullYear() }} GZC</span>
+        <span>© {{ new Date().getFullYear() }} GZC.LOG</span>
+        <span class="footer-dot">·</span>
+        <span>Frontend · AI · Engineering Notes</span>
         <span class="footer-dot">·</span>
         <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
       </div>
@@ -84,14 +89,15 @@ watch(() => route.path, reset)
 
 .reading-progress-bar {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
   transition: width 0.1s ease;
 }
 
 /* 导航栏 */
 .header {
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(20px);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -99,75 +105,93 @@ watch(() => route.path, reset)
 
 .header-inner {
   padding: 0 32px;
-  height: 56px;
+  height: 68px;
   display: flex;
   align-items: center;
   gap: 32px;
-  max-width: 1400px;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
 .logo {
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.logo-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 800;
+  box-shadow: 5px 5px 0 color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.logo-text {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 
 .nav {
   display: flex;
-  gap: 24px;
+  gap: 6px;
   flex: 1;
+  justify-content: center;
 }
 
 .nav-link {
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   color: var(--text-secondary);
   transition: color 0.2s;
   white-space: nowrap;
-  padding: 4px 0;
+  padding: 7px 12px;
   position: relative;
+  border: 1px solid transparent;
+  border-radius: 999px;
 }
 
 .nav-link::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 1px;
-  transform: scaleX(0);
-  transition: transform 0.2s ease;
+  content: none;
 }
 
 .nav-link:hover,
 .nav-link.active {
   color: var(--text);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--card-bg) 72%, transparent);
 }
 
-.nav-link:hover::after {
-  transform: scaleX(1);
-}
-
-.nav-link.active::after {
-  transform: scaleX(1);
+.nav-link.active {
+  color: var(--accent);
 }
 
 .theme-btn {
-  background: none;
-  border: none;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
   cursor: pointer;
-  font-size: 1.1rem;
-  padding: 4px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 8px 12px;
   line-height: 1;
-  border-radius: 6px;
-  transition: background 0.2s;
+  border-radius: 999px;
+  transition: border-color 0.2s, color 0.2s, transform 0.2s;
 }
 
 .theme-btn:hover {
-  background: var(--tag-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 /* 全局容器 */
@@ -185,12 +209,13 @@ watch(() => route.path, reset)
 /* 页脚 */
 .footer {
   border-top: 1px solid var(--border);
-  padding: 24px 0;
+  padding: 26px 0;
   margin-top: auto;
+  background: color-mix(in srgb, var(--bg-secondary) 52%, transparent);
 }
 
 .footer-inner {
-  max-width: 1400px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0 32px;
   display: flex;
@@ -198,6 +223,7 @@ watch(() => route.path, reset)
   justify-content: center;
   gap: 12px;
   font-size: 0.85rem;
+  flex-wrap: wrap;
   color: var(--text-tertiary);
 }
 
@@ -208,27 +234,39 @@ watch(() => route.path, reset)
 /* 页面过渡 */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+  transform: translateY(6px);
 }
 
 /* 响应式 */
 @media (max-width: 640px) {
   .header-inner {
-    gap: 16px;
-    padding: 0 16px;
+    gap: 10px;
+    height: auto;
+    min-height: 62px;
+    padding: 10px 16px;
+    flex-wrap: wrap;
   }
 
   .nav {
-    gap: 16px;
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .nav-link {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
+  }
+
+  .logo {
+    margin-right: auto;
   }
 }
 </style>
