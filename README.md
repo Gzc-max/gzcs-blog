@@ -41,7 +41,9 @@ npm install
 npm run dev
 ```
 
-访问 `http://localhost:5173`。
+访问 `http://127.0.0.1:5174`。
+
+项目已在 Vite 配置中固定使用 `5174` 端口，并开启 `strictPort`。如果该端口被占用，启动会直接失败，不会自动切换到其他端口。
 
 ## 构建
 

@@ -6,7 +6,6 @@ import xml from 'highlight.js/lib/languages/xml'
 import css from 'highlight.js/lib/languages/css'
 import bash from 'highlight.js/lib/languages/bash'
 import json from 'highlight.js/lib/languages/json'
-import 'highlight.js/styles/github.min.css'
 
 export interface TocItem {
   id: string

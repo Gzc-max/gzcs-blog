@@ -46,7 +46,9 @@
               :key="item.id"
               :href="`#${item.id}`"
               class="toc-link"
-              :class="`depth-${item.depth}`"
+              :class="[`depth-${item.depth}`, { active: activeHeadingId === item.id }]"
+              :aria-current="activeHeadingId === item.id ? 'location' : undefined"
+              @click.prevent="scrollToHeading(item.id)"
             >
               {{ item.text }}
             </a>
@@ -58,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { loadArticle, type Article } from '@/utils/contentLoader'
 import { formatDate } from '@/utils/formatDate'
@@ -68,6 +70,76 @@ import CommentBox from '@/components/CommentBox.vue'
 const route = useRoute()
 const article = ref<Article | null>(null)
 const loading = ref(true)
+const activeHeadingId = ref('')
+
+let headingElements: HTMLElement[] = []
+let ticking = false
+let hashScrollTimer: number | undefined
+
+function collectHeadings() {
+  headingElements = Array.from(document.querySelectorAll<HTMLElement>('.article-body h2[id], .article-body h3[id]'))
+}
+
+function updateActiveHeading() {
+  ticking = false
+
+  if (!headingElements.length) {
+    activeHeadingId.value = ''
+    return
+  }
+
+  const offset = 118
+  let current = headingElements[0]
+
+  for (const heading of headingElements) {
+    if (heading.getBoundingClientRect().top <= offset) {
+      current = heading
+    } else {
+      break
+    }
+  }
+
+  activeHeadingId.value = current.id
+}
+
+function requestActiveHeadingUpdate() {
+  if (ticking) return
+  ticking = true
+  window.requestAnimationFrame(updateActiveHeading)
+}
+
+function getHashId(hash = window.location.hash) {
+  return decodeURIComponent(hash.replace(/^#/, ''))
+}
+
+function scrollToHeading(id: string, behavior: ScrollBehavior = 'smooth', updateHash = true) {
+  const heading = document.getElementById(id)
+  if (!heading) return
+
+  activeHeadingId.value = id
+  if (updateHash) {
+    window.history.replaceState(null, '', `#${id}`)
+  }
+  heading.scrollIntoView({ behavior, block: 'start' })
+
+  window.clearTimeout(hashScrollTimer)
+  hashScrollTimer = window.setTimeout(() => {
+    window.requestAnimationFrame(updateActiveHeading)
+  }, behavior === 'smooth' ? 360 : 0)
+}
+
+function scrollToInitialHash() {
+  const id = getHashId()
+  if (!id) return
+
+  window.requestAnimationFrame(() => {
+    scrollToHeading(id, 'auto', false)
+  })
+}
+
+function handleHashChange() {
+  scrollToInitialHash()
+}
 
 onMounted(() => {
   const slug = route.params.slug as string
@@ -85,7 +157,38 @@ onMounted(() => {
     })
   }
   loading.value = false
+
+  nextTick(() => {
+    collectHeadings()
+    if (window.location.hash) {
+      scrollToInitialHash()
+    } else {
+      updateActiveHeading()
+    }
+    window.addEventListener('scroll', requestActiveHeadingUpdate, { passive: true })
+    window.addEventListener('resize', requestActiveHeadingUpdate)
+    window.addEventListener('hashchange', handleHashChange)
+  })
 })
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', requestActiveHeadingUpdate)
+  window.removeEventListener('resize', requestActiveHeadingUpdate)
+  window.removeEventListener('hashchange', handleHashChange)
+  window.clearTimeout(hashScrollTimer)
+})
+
+watch(
+  () => route.hash,
+  (hash) => {
+    const id = getHashId(hash)
+    if (!id) return
+
+    nextTick(() => {
+      scrollToHeading(id, 'auto', false)
+    })
+  }
+)
 </script>
 
 <style scoped>
@@ -264,10 +367,10 @@ onMounted(() => {
   position: relative;
   margin: 1.8em 0;
   padding: 48px 18px 18px;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border: 1px solid var(--code-border);
   border-radius: 0;
   background: var(--code-bg);
-  box-shadow: 8px 8px 0 color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 8px 8px 0 var(--code-shadow);
   color: var(--code-text);
   overflow-x: auto;
   font-size: 0.9rem;
@@ -291,6 +394,98 @@ onMounted(() => {
   color: inherit;
   padding: 0;
   font-size: inherit;
+}
+
+.article-body :deep(.hljs) {
+  background: transparent;
+  color: var(--code-text);
+}
+
+.article-body :deep(.hljs-doctag),
+.article-body :deep(.hljs-keyword),
+.article-body :deep(.hljs-meta .hljs-keyword),
+.article-body :deep(.hljs-template-tag),
+.article-body :deep(.hljs-template-variable),
+.article-body :deep(.hljs-type),
+.article-body :deep(.hljs-variable.language_) {
+  color: var(--code-keyword);
+}
+
+.article-body :deep(.hljs-title),
+.article-body :deep(.hljs-title.class_),
+.article-body :deep(.hljs-title.class_.inherited__),
+.article-body :deep(.hljs-title.function_) {
+  color: var(--code-title);
+}
+
+.article-body :deep(.hljs-attr),
+.article-body :deep(.hljs-attribute),
+.article-body :deep(.hljs-literal),
+.article-body :deep(.hljs-meta),
+.article-body :deep(.hljs-number),
+.article-body :deep(.hljs-operator),
+.article-body :deep(.hljs-selector-attr),
+.article-body :deep(.hljs-selector-class),
+.article-body :deep(.hljs-selector-id),
+.article-body :deep(.hljs-variable) {
+  color: var(--code-attr);
+}
+
+.article-body :deep(.hljs-meta .hljs-string),
+.article-body :deep(.hljs-regexp),
+.article-body :deep(.hljs-string) {
+  color: var(--code-string);
+}
+
+.article-body :deep(.hljs-built_in),
+.article-body :deep(.hljs-symbol) {
+  color: var(--code-built-in);
+}
+
+.article-body :deep(.hljs-code),
+.article-body :deep(.hljs-comment),
+.article-body :deep(.hljs-formula) {
+  color: var(--code-comment);
+}
+
+.article-body :deep(.hljs-name),
+.article-body :deep(.hljs-quote),
+.article-body :deep(.hljs-selector-pseudo),
+.article-body :deep(.hljs-selector-tag) {
+  color: var(--code-name);
+}
+
+.article-body :deep(.hljs-subst),
+.article-body :deep(.hljs-emphasis),
+.article-body :deep(.hljs-strong) {
+  color: var(--code-text);
+}
+
+.article-body :deep(.hljs-section) {
+  color: var(--code-section);
+  font-weight: 700;
+}
+
+.article-body :deep(.hljs-bullet) {
+  color: var(--code-bullet);
+}
+
+.article-body :deep(.hljs-emphasis) {
+  font-style: italic;
+}
+
+.article-body :deep(.hljs-strong) {
+  font-weight: 700;
+}
+
+.article-body :deep(.hljs-addition) {
+  background-color: var(--code-addition-bg);
+  color: var(--code-addition-text);
+}
+
+.article-body :deep(.hljs-deletion) {
+  background-color: var(--code-deletion-bg);
+  color: var(--code-deletion-text);
 }
 
 .article-body :deep(blockquote) {
@@ -373,10 +568,14 @@ onMounted(() => {
 }
 
 .toc-link {
+  position: relative;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
   color: var(--text-secondary);
   font-size: 0.85rem;
   line-height: 1.5;
-  transition: color 0.2s, transform 0.2s;
+  transition: border-color 0.2s, background 0.2s, color 0.2s, transform 0.2s;
 }
 
 .toc-link:hover {
@@ -384,8 +583,15 @@ onMounted(() => {
   transform: translateX(3px);
 }
 
+.toc-link.active {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .toc-link.depth-3 {
-  padding-left: 14px;
+  padding-left: 24px;
   font-size: 0.8rem;
 }
 
